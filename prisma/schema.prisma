@@ -1,0 +1,104 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Plan {
+  FREE
+  PRO
+  BUSINESS
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELED
+  PAST_DUE
+  TRIALING
+}
+
+enum ProjectStatus {
+  UPLOADED
+  ANALYZING
+  ANALYZED
+  QUEUED
+  RENDERING
+  COMPLETED
+  FAILED
+}
+
+model User {
+  id             String         @id @default(cuid())
+  name           String?
+  email          String         @unique
+  passwordHash   String?        @map("password_hash")
+  googleId       String?        @unique @map("google_id")
+  avatar         String?
+  plan           Plan           @default(FREE)
+  credits        Int            @default(3)
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+  subscriptions  Subscription[]
+  projects       Project[]
+  payments       Payment[]
+
+  @@map("users")
+}
+
+model Subscription {
+  id        String             @id @default(cuid())
+  userId    String             @map("user_id")
+  plan      Plan
+  status    SubscriptionStatus
+  startDate DateTime           @map("start_date")
+  endDate   DateTime?          @map("end_date")
+  createdAt DateTime           @default(now()) @map("created_at")
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("subscriptions")
+}
+
+model Project {
+  id          String        @id @default(cuid())
+  userId      String        @map("user_id")
+  title       String
+  status      ProjectStatus @default(UPLOADED)
+  videoUrl    String        @map("video_url")
+  resultUrl   String?       @map("result_url")
+  editingMode String        @map("editing_mode")
+  viralScore  Int?          @map("viral_score")
+  duration    Int?
+  createdAt   DateTime      @default(now()) @map("created_at")
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  renders     Render[]
+
+  @@map("projects")
+}
+
+model Render {
+  id             String        @id @default(cuid())
+  projectId      String        @map("project_id")
+  startedAt      DateTime      @default(now()) @map("started_at")
+  finishedAt     DateTime?     @map("finished_at")
+  status         ProjectStatus @default(QUEUED)
+  processingTime Int?          @map("processing_time")
+  project        Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("renders")
+}
+
+model Payment {
+  id            String   @id @default(cuid())
+  userId        String   @map("user_id")
+  amount        Int
+  provider      String
+  status        String
+  transactionId String   @unique @map("transaction_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
+}
